@@ -5,21 +5,21 @@
  * */
 const express = require('express');
 const bodyParser = require('body-parser');
-const { mongoose } = require('./db/mongoose.js');
-const { ObjectID } = require('mongodb');
+const {mongoose} = require('./db/mongoose.js');
+const {ObjectID} = require('mongodb');
 const _ = require('lodash');
 
-const { Todo } = require('./models/todo.js');
-const { User } = require('./models/user.js');
+const {Todo} = require('./models/todo.js');
+const {User} = require('./models/user.js');
 
 const app = express();
 
 // inject body parser in application request
 app.use(bodyParser.json());
 app.use(bodyParser());
-app.use(bodyParser.urlencoded({extend:true}));
-app.set('view_engine','hbs'); // adding view engine
-const views=__dirname+"/views/"; // define path to the view directory
+app.use(bodyParser.urlencoded({extend: true}));
+app.set('view_engine', 'hbs'); // adding view engine
+const views = __dirname + "/views/"; // define path to the view directory
 
 /**
  * add totod
@@ -27,7 +27,8 @@ const views=__dirname+"/views/"; // define path to the view directory
  */
 app.post('/todos', (req, res) => {
     var todo = new Todo({
-        text: req.body.text
+        text: req.body.text,
+        user: req.body.user
     });
     req.params
 
@@ -45,7 +46,7 @@ app.post('/todos', (req, res) => {
 app.get('/todos', (req, res) => {
 
     Todo.find().then((todos) => {
-        res.status(200).send({ todos });
+        res.status(200).send({todos});
     }, (e) => {
         res.status(400).send(e);
     });
@@ -58,8 +59,14 @@ app.get('/todos', (req, res) => {
 app.get('/todos/:id', (req, res) => {
     var id = req.params.id;
     if (ObjectID.isValid(id)) {
-        Todo.findById({ _id: id }).then((doc) => { res.send(doc) }, (e) => { res.send(e) });
-    } else { res.status(400).send("Ghare ja"); }
+        Todo.findById({_id: id}).then((doc) => {
+            res.send(doc)
+        }, (e) => {
+            res.send(e)
+        });
+    } else {
+        res.status(400).send("Ghare ja");
+    }
 });
 
 /**
@@ -69,10 +76,14 @@ app.get('/todos/:id', (req, res) => {
 app.delete('/todos/:id', (req, res) => {
     var id = req.params.id;
     if (ObjectID.isValid(id)) {
-        Todo.findByIdAndRemove({ _id: id }).then((doc) => {
+        Todo.findByIdAndRemove({_id: id}).then((doc) => {
             doc ? res.send(doc) : res.send('Document Not Found');
-        }, (e) => { res.send(e) });
-    } else { res.status(400).send("Ghare ja"); }
+        }, (e) => {
+            res.send(e)
+        });
+    } else {
+        res.status(400).send("Ghare ja");
+    }
 });
 
 /**
@@ -93,12 +104,14 @@ app.patch('/todos/:id', (req, res) => {
         body.completedAt = null;
     }
 
-    Todo.findByIdAndUpdate(id, { $set: body }, { new: true }).then((result) => {
+    Todo.findByIdAndUpdate(id, {$set: body}, {new: true}).then((result) => {
         if (!result) {
             res.status(400).send('not find');
         }
-        res.status(200).send({ result })
-    }, (e) => { res.status(400).send('opps', e) })
+        res.status(200).send({result})
+    }, (e) => {
+        res.status(400).send('opps', e)
+    })
 });
 
 /**
@@ -111,15 +124,53 @@ app.post('/user', (req, res) => {
         email: req.body.email,
         password: req.body.password
     });
-    user.save().then((result) => { res.status(201).send(result) }, (e) => { res.status(400).send(e) });
+    user.save().then((result) => {
+        res.status(201).send(result)
+    }, (e) => {
+        res.status(400).send(e)
+    });
 });
 
 // get all user
-app.get('/user',(req,res)=>{
-    User.find().then((user)=>{
+app.get('/user', (req, res) => {
+    User.find().then((user) => {
         res.status(200).send(user).end();
-    },(e)=>{res.status(401).send(e).end()})
-})
+    }, (e) => {
+        res.status(401).send(e).end()
+    })
+});
+
+/**
+ * join document
+ * get task base on user email address
+ * */
+
+app.get('/userTodo/:email', (req, res) => {
+    User.find({email: req.params.email}).then((user) => {
+        let usera=user[0]._id;
+        console.log(usera)
+        if (user) {
+            Todo.find({user: usera}).then((todo) => {
+                console.log(todo)
+                let todos={
+                    "user":{
+                        "name":user[0].name,
+                        "email":user[0].email
+                    },
+                    "todos":todo,
+                }
+                todo ? res.send(todos) : res.send('no document found');
+            })
+        } else {
+            res.send('no user found')
+        }
+    });
+
+
+
+
+
+});
 
 app.listen(3000, () => {
     console.log('3000')
